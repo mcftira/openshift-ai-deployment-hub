@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GLM-5.2 × 8×H100 — OpenShift AI Deployment Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --phos:#00F48E;
+    --phos-bright:#00FF3C;
+    --phos-dim:rgba(0,244,142,.38);
+    --phos-faint:rgba(0,244,142,.10);
+    --bg:#000000;
+    --panel:#020604;
+    --warn:#ffb454;
+    --ink:#c9ffe4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Space Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:15px;
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--phos);color:#000}
+  ::-webkit-scrollbar{width:10px;background:#000}
+  ::-webkit-scrollbar-thumb{background:var(--phos-dim);border:2px solid #000}
+  ::-webkit-scrollbar-thumb:hover{background:var(--phos)}
+
+  /* ---- CRT material ---- */
+  .crt{position:fixed;inset:0;pointer-events:none;z-index:60;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+    mix-blend-mode:multiply;}
+  .crt::after{content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%);}
+  .glow{text-shadow:0 0 6px rgba(0,244,142,.55),0 0 22px rgba(0,244,142,.22)}
+  .glow-soft{text-shadow:0 0 10px rgba(0,244,142,.25)}
+
+  /* ---- boot overlay ---- */
+  #boot{position:fixed;inset:0;background:#000;z-index:100;display:flex;
+    align-items:center;justify-content:center;transition:opacity .6s ease;}
+  #boot.done{opacity:0;pointer-events:none}
+  #bootlog{width:min(680px,90vw);font-size:14px;color:var(--phos);white-space:pre-wrap}
+  #bootlog .cursor{display:inline-block;width:9px;height:16px;background:var(--phos);
+    vertical-align:-2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* ---- shell frame ---- */
+  .shell{max-width:1180px;margin:0 auto;padding:0 20px 120px}
+  .notch{
+    background:var(--panel);
+    clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+    border:1px solid transparent;
+    position:relative;
+  }
+  .notch::before{content:"";position:absolute;inset:0;pointer-events:none;
+    clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+    box-shadow:inset 0 0 0 1px var(--phos-dim);}
+  .notch::after{content:"";position:absolute;inset:5px;pointer-events:none;
+    clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px);
+    box-shadow:inset 0 0 0 1px rgba(0,244,142,.12);}
+
+  /* ---- header ---- */
+  header{margin:26px 0 0;padding:18px 26px;display:flex;flex-wrap:wrap;gap:14px;
+    align-items:center;justify-content:space-between}
+  .brand{color:var(--phos-bright);font-weight:700;letter-spacing:.04em;font-size:17px}
+  .brand .prompt{color:var(--phos-dim)}
+  .hdr-meta{display:flex;gap:22px;font-size:12px;color:var(--phos-dim);text-transform:uppercase;letter-spacing:.12em}
+  .hdr-meta b{color:var(--phos);font-weight:400}
+  .led{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--phos);
+    box-shadow:0 0 8px var(--phos);margin-right:6px;vertical-align:1px;animation:pulse 2.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  nav{display:flex;flex-wrap:wrap;gap:2px;margin:14px 0 0;padding:0 26px 18px;
+    border-top:1px solid rgba(0,244,142,.14)}
+  nav a{color:var(--phos-dim);text-decoration:none;font-size:12px;text-transform:uppercase;
+    letter-spacing:.14em;padding:12px 14px 4px;transition:color .2s,text-shadow .2s}
+  nav a:hover{color:var(--phos-bright);text-shadow:0 0 8px rgba(0,255,60,.6)}
+  nav a::before{content:"./";color:rgba(0,244,142,.25)}
+
+  /* ---- hero ---- */
+  .hero{padding:72px 26px 56px;position:relative}
+  .hero .sys{font-size:12px;color:var(--phos-dim);letter-spacing:.2em;text-transform:uppercase;margin-bottom:18px}
+  h1{font-size:clamp(30px,5.4vw,58px);line-height:1.08;color:var(--phos);
+    text-transform:uppercase;letter-spacing:-.01em;font-weight:700}
+  h1 .dim{color:rgba(0,244,142,.45)}
+  .hero p.sub{margin-top:22px;max-width:760px;color:var(--ink);font-size:15px}
+  .hero p.sub b{color:var(--phos);font-weight:700}
+  .hero-tags{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .tag{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--phos);
+    border:1px solid var(--phos-dim);padding:5px 10px;background:var(--phos-faint)}
+
+  /* ---- advisory ---- */
+  .advisory{margin:34px 0 0;padding:26px;border-color:transparent}
+  .advisory::before{box-shadow:inset 0 0 0 1px rgba(255,180,84,.55)}
+  .advisory::after{box-shadow:inset 0 0 0 1px rgba(255,180,84,.18)}
+  .advisory h2{color:var(--warn);text-shadow:0 0 10px rgba(255,180,84,.35);
+    font-size:15px;text-transform:uppercase;letter-spacing:.16em;margin-bottom:14px}
+  .advisory h2::before{content:"[!!] ";color:var(--warn)}
+  .advisory p{color:#ffe6c4;font-size:14px;max-width:980px}
+  .advisory p+p{margin-top:10px}
+  .advisory b{color:var(--warn)}
+  .advisory code{color:var(--warn);background:rgba(255,180,84,.08);padding:1px 6px}
+
+  /* ---- sections ---- */
+  section{margin-top:44px}
+  .sec-head{display:flex;align-items:baseline;gap:16px;padding:0 4px 14px}
+  .sec-head .idx{color:var(--phos-dim);font-size:13px}
+  .sec-head h2{color:var(--phos);text-transform:uppercase;font-size:20px;letter-spacing:.1em}
+  .sec-head .rule{flex:1;height:1px;background:linear-gradient(90deg,var(--phos-dim),transparent)}
+
+  .mod{padding:26px}
+
+  /* link index rows */
+  .rows{display:flex;flex-direction:column}
+  .row{display:grid;grid-template-columns:34px minmax(180px,290px) 1fr auto;gap:14px;
+    align-items:baseline;padding:13px 12px;border-bottom:1px solid rgba(0,244,142,.10);
+    text-decoration:none;color:var(--ink);transition:background .15s}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:var(--phos-faint)}
+  .row .pfx{color:var(--phos-dim);font-size:13px}
+  .row:hover .pfx{color:var(--phos-bright)}
+  .row .name{color:var(--phos);font-weight:700;font-size:14px;word-break:break-word}
+  .row .desc{font-size:13px;color:rgba(201,255,228,.72)}
+  .row .desc .hl{color:var(--phos)}
+  .row .go{color:var(--phos-dim);font-size:12px;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+  .row:hover .go{color:var(--phos-bright);text-shadow:0 0 8px rgba(0,255,60,.6)}
+  .badge{display:inline-block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    border:1px solid var(--phos-dim);color:var(--phos);padding:2px 7px;margin-left:8px;
+    vertical-align:2px;background:var(--phos-faint)}
+  .badge.warn{border-color:rgba(255,180,84,.5);color:var(--warn);background:rgba(255,180,84,.07)}
+  .badge.dim{border-color:rgba(201,255,228,.25);color:rgba(201,255,228,.55);background:transparent}
+
+  /* code blocks */
+  .code{margin:18px 0 4px;background:#000;border:1px solid rgba(0,244,142,.18);position:relative}
+  .code .bar{display:flex;justify-content:space-between;align-items:center;
+    padding:8px 14px;border-bottom:1px solid rgba(0,244,142,.14);
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--phos-dim)}
+  .copy{background:none;border:1px solid var(--phos-dim);color:var(--phos);
+    font-family:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    padding:3px 10px;cursor:pointer;transition:all .15s}
+  .copy:hover{background:var(--phos);color:#000;box-shadow:0 0 14px rgba(0,244,142,.5)}
+  .code pre{padding:16px;overflow-x:auto;font-size:13px;line-height:1.65;color:var(--ink)}
+  .code pre .c{color:rgba(0,244,142,.45)}
+  .code pre .k{color:var(--phos)}
+
+  /* two-col */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .grid2>div{padding:26px}
+  .grid2>div:first-child{border-right:1px solid rgba(0,244,142,.12)}
+  @media(max-width:880px){
+    .grid2{grid-template-columns:1fr}
+    .grid2>div:first-child{border-right:none;border-bottom:1px solid rgba(0,244,142,.12)}
+    .row{grid-template-columns:24px 1fr auto}
+    .row .desc{grid-column:2/4}
+  }
+
+  /* sizing table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{color:var(--phos-dim);text-transform:uppercase;letter-spacing:.12em;font-size:11px;
+    text-align:left;padding:10px 12px;border-bottom:1px solid var(--phos-dim);font-weight:400}
+  td{padding:12px;border-bottom:1px solid rgba(0,244,142,.10);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td .ok{color:var(--phos-bright)}
+  td .no{color:var(--warn)}
+  td.mono{color:var(--phos)}
+
+  .note{font-size:12px;color:rgba(201,255,228,.6);padding:0 4px;margin-top:10px}
+  .note b{color:var(--phos)}
+
+  footer{margin-top:60px;padding:26px;font-size:12px;color:var(--phos-dim)}
+  footer a{color:var(--phos);text-decoration:none}
+  footer a:hover{text-shadow:0 0 8px rgba(0,244,142,.6)}
+  footer .srcline{margin-top:10px;line-height:1.9}
+  .cursor-inline{display:inline-block;width:9px;height:15px;background:var(--phos);
+    vertical-align:-2px;animation:blink 1s steps(1) infinite}
+
+  /* reveal */
+  .rv{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+  .rv.on{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){
+    .rv{opacity:1;transform:none;transition:none}
+    .led,.cursor-inline,#bootlog .cursor{animation:none}
+  }
+</style>
+</head>
+<body>
+<div class="crt"></div>
+
+<div id="boot">
+  <div id="bootlog"></div>
+</div>
+
+<div class="shell">
+
+  <header class="notch">
+    <div class="brand glow"><span class="prompt">&gt;_</span> GLM-5.2 // 8×H100 OPS CONSOLE</div>
+    <div class="hdr-meta">
+      <span><span class="led"></span>cluster: <b>openshift-ai</b></span>
+      <span>gpus: <b>8× NVIDIA H100 80GB</b></span>
+      <span>aggregate vram: <b>640 GB</b></span>
+    </div>
+    <nav>
+      <a href="#advisory">advisory</a>
+      <a href="#stack">recommended</a>
+      <a href="#models">models</a>
+      <a href="#runtime">vllm+runtime</a>
+      <a href="#rhoai">openshift-ai</a>
+      <a href="#cli">cli-tools</a>
+      <a href="#deploy">deploy-configs</a>
+      <a href="#paths">decision-tree</a>
+      <a href="#sizing">sizing</a>
+    </nav>
+  </header>
+
+  <div class="hero notch" style="margin-top:14px">
+    <div class="sys">// transmission: inference bring-up packet · rev 2026-08-13</div>
+    <h1 class="glow">SERVE GLM-5.2<br><span class="dim">ON YOUR 8×H100 OPENSHIFT AI NODE</span></h1>
+    <p class="sub">
+      One page with every download and config you need: the <b>GLM-5.2-W4A16</b> checkpoint
+      (388 GB — the only GLM-5.2 build that actually runs correctly on 640 GB of Hopper HBM),
+      the <b>vLLM</b> runtime images for Red Hat OpenShift AI, the model-serving YAML, the
+      NVFP4-on-Hopper bug tracker links, and the CLI tooling to pull it all down.
+      Pick the modules, copy the manifests, deploy.
+    </p>
+    <div class="hero-tags">
+      <span class="tag">744B MoE · ~40B active</span>
+      <span class="tag">1M token context</span>
+      <span class="tag">W4A16 checkpoint ≈ 388 GB</span>
+      <span class="tag">TP=8 · FP8 KV cache</span>
+      <span class="tag">KServe / vLLM runtime</span>
+    </div>
+  </div>
+
+  <section id="advisory" class="rv">
+    <div class="advisory notch">
+      <h2>read first — field-corrected reality check (2026-08)</h2>
+      <p>
+        Two hard constraints decide everything on this node, and both were verified against the
+        live vLLM bug tracker:
+      </p>
+      <p>
+        <b>1 — NVFP4 on H100 is not just slow, it is flaky right now.</b> H100 (Hopper, sm90) has no
+        FP4 tensor cores, so vLLM routes NVFP4 checkpoints to a <b>Marlin weight-only fallback</b> that
+        dequantizes to BF16 on the fly — you lose the speed benefit, and the kernel path itself is
+        broken: issue <code>#34694</code> shows BF16 NVFP4 Marlin producing garbled output on all
+        non-FP4 GPUs (bad exponent widening in the dequant kernel), and issue <code>#49070</code> shows
+        NVFP4-MoE on Hopper returning garbage <i>and</i> crashing with CUDA illegal memory access under
+        concurrency. GLM-5.2 is a MoE model — it hits exactly this path. Fix PRs
+        (<code>#34577</code>, <code>#48929</code>, <code>#48624</code>) exist but are not all merged.
+        <b>Do not deploy the NVFP4 checkpoint on H100</b> until your vLLM build carries every fix —
+        links in module [03].
+      </p>
+      <p>
+        <b>2 — FP8 does not fit.</b> GLM-5.2 is ~744B params → FP8 weights alone are ~740–750 GB.
+        8×H100 80 GB gives you 640 GB, and even 8×H100 NVL (94 GB) only reaches ~752 GB — zero
+        headroom for KV cache or context. The native-FP8 checkpoint officially needs
+        <b>8×H200 (1.1 TB)</b>.
+      </p>
+      <p>
+        <b>The way through: INT4 / W4A16 weight-only.</b> 4-bit weights (~388 GB) with BF16 activations —
+        compute runs natively on Hopper tensor cores, no FP4 kernel dependency, no dequant correctness
+        bugs, and ~250 GB left over for an FP8 KV cache. Benchmarks show parity with the FP8 release.
+        This is the only single-node GLM-5.2 config that is both <b>fitting</b> and <b>correct</b> on
+        8×H100 today.
+      </p>
+    </div>
+  </section>
+
+  <section id="stack" class="rv">
+    <div class="sec-head"><span class="idx">[01]</span><h2 class="glow-soft">Recommended stack</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <p style="color:var(--ink);font-size:14px;max-width:980px">
+        Most optimal for 8×H100: <b style="color:var(--phos)">GLM-5.2-W4A16</b> (INT4 weights,
+        BF16 compute) served by <b style="color:var(--phos)">vLLM ≥ 0.23</b>, tensor-parallel across
+        all 8 GPUs, FP8 KV cache, expert parallel on. No exotic kernels — this rides the standard
+        compressed-tensors Marlin W4A16 path that is stable on Hopper. Exact serve command:
+      </p>
+      <div class="code">
+        <div class="bar"><span>&gt; vllm serve — 8×H100 production flags</span><button class="copy" data-copy="serve">copy</button></div>
+<pre id="serve"><span class="k">vllm serve</span> lowbitcoffee/GLM-5.2-W4A16 \
+    --tensor-parallel-size 8 \
+    --enable-expert-parallel \
+    --kv-cache-dtype fp8 \
+    --max-model-len 131072 \
+    --gpu-memory-utilization 0.92 \
+    --tool-call-parser glm47 \
+    --reasoning-parser glm45 \
+    --enable-auto-tool-choice \
+    --served-model-name glm-5.2 \
+    --port 8000</pre>
+      </div>
+      <p class="note">
+        <b>Notes:</b> keep <b>--max-model-len 131072</b> as the production cap — pushing toward the full
+        1M context starves the KV cache and tanks concurrent throughput on 640 GB. Add MTP speculative
+        decoding via <b>--speculative-config '{"num_speculative_tokens": 3, "method": "deepseek_mtp"}'</b>
+        once on a vLLM build that includes it (GLM-5.2 extends MTP to 5 draft tokens on latest main).
+        If a flag is rejected, your runtime image is older than v0.23 — pull the newest
+        <b>quay.io/modh/vllm</b> CUDA tag or the upstream <b>vllm/vllm-openai</b> image from module [03].
+      </p>
+    </div>
+  </section>
+
+  <section id="models" class="rv">
+    <div class="sec-head"><span class="idx">[02]</span><h2 class="glow-soft">Model checkpoints — download</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <div class="rows">
+        <a class="row" href="https://huggingface.co/lowbitcoffee/GLM-5.2-W4A16" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">lowbitcoffee/GLM-5.2-W4A16<span class="badge">recommended</span></span>
+          <span class="desc">INT4 weights (group 128) + BF16 activations, compressed-tensors format. <span class="hl">388 GB — fits 8×H100 with ~250 GB KV headroom, and runs correctly on Hopper</span> (no FP4 kernels). Benchmarks at parity with the FP8 release (GSM8K 96.5 vs 94.5).</span>
+          <span class="go">huggingface ↗</span>
+        </a>
+        <a class="row" href="https://huggingface.co/RedHatAI/GLM-5.2-NVFP4" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">RedHatAI/GLM-5.2-NVFP4<span class="badge warn">flaky on h100</span></span>
+          <span class="desc">Red Hat's NVFP4 MoE quant. Fits at ~400 GB, <span class="hl">but the Marlin FP4-MoE fallback on Hopper is broken</span> (garbled output + illegal memory access — issues #34694 / #49070). Blackwell-only until every fix PR merges. Track in module [03].</span>
+          <span class="go">huggingface ↗</span>
+        </a>
+        <a class="row" href="https://huggingface.co/RedHatAI/GLM-5.2-NVFP4-FP8" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">RedHatAI/GLM-5.2-NVFP4-FP8<span class="badge warn">flaky on h100</span></span>
+          <span class="desc">Hybrid NVFP4-MoE + FP8-attention build. Same Hopper kernel problem as above; needs PR #47780 plus the Marlin fixes. Revisit on B200/B300.</span>
+          <span class="go">huggingface ↗</span>
+        </a>
+        <a class="row" href="https://huggingface.co/RedHatAI/GLM-5.2-speculator.dspark-preview" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">RedHatAI/GLM-5.2-speculator.dspark-preview</span>
+          <span class="desc">Optional DSpark draft model for speculative decoding (mean accepted length ≈ 3.97 tokens). Pairs with the FP8 base; watch vLLM releases for DSpark serving support.</span>
+          <span class="go">huggingface ↗</span>
+        </a>
+        <a class="row" href="https://huggingface.co/RedHatAI/GLM-5.2-FP8" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">RedHatAI/GLM-5.2-FP8<span class="badge warn">needs 8×H200</span></span>
+          <span class="desc">Native FP8 (~750 GB weights). Fastest precision on Hopper but <span class="hl">does not fit 640 GB — not even on 8×H100 NVL (752 GB)</span>. Officially requires 8×H200 single-node.</span>
+          <span class="go">huggingface ↗</span>
+        </a>
+        <a class="row" href="https://huggingface.co/zai-org/GLM-5.2" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">zai-org/GLM-5.2<span class="badge dim">bf16 base · ~1.5 TB</span></span>
+          <span class="desc">Upstream Z.ai original (MIT license). Only needed if you plan to re-quantize or fine-tune — far too large to serve on this node.</span>
+          <span class="go">huggingface ↗</span>
+        </a>
+        <a class="row" href="https://huggingface.co/RedHatAI" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">RedHatAI org — validated models</span>
+          <span class="desc">All Red Hat validated &amp; quantized checkpoints (Llama, gpt-oss, Qwen, DeepSeek, GLM). Each card carries a "Deploy on OpenShift AI" section with matching runtime + modelcar images.</span>
+          <span class="go">huggingface ↗</span>
+        </a>
+      </div>
+      <div class="code">
+        <div class="bar"><span>&gt; pull the weights (~388 GB, use hf_transfer for speed)</span><button class="copy" data-copy="hfget">copy</button></div>
+<pre id="hfget"><span class="c"># on a machine with fast storage, then push to your S3/PVC or modelcar</span>
+pip install -U "huggingface_hub[hf_transfer]"
+HF_HUB_ENABLE_HF_TRANSFER=1 \
+<span class="k">hf download</span> lowbitcoffee/GLM-5.2-W4A16 \
+    --local-dir ./glm-5.2-w4a16</pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="runtime" class="rv">
+    <div class="sec-head"><span class="idx">[03]</span><h2 class="glow-soft">vLLM engine &amp; runtime images</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <div class="rows">
+        <a class="row" href="https://quay.io/repository/modh/vllm" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">quay.io/modh/vllm<span class="badge">rhoai runtime</span></span>
+          <span class="desc">Red Hat's supported vLLM image for OpenShift AI (e.g. tag <span class="hl">rhoai-2.20-cuda</span>). Use this in your ServingRuntime; pick the newest cuda tag so PR #41276 is included.</span>
+          <span class="go">quay.io ↗</span>
+        </a>
+        <a class="row" href="https://hub.docker.com/r/vllm/vllm-openai" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">vllm/vllm-openai</span>
+          <span class="desc">Upstream vLLM OpenAI-server image. GLM-5.2 support lands in <span class="hl">v0.23.0+</span>; there is also a dedicated glm52 tag while support stabilizes.</span>
+          <span class="go">docker hub ↗</span>
+        </a>
+        <a class="row" href="https://github.com/vllm-project/vllm/releases" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">vLLM releases</span>
+          <span class="desc">Check that your build is ≥ 0.23.0 and includes the GLM-5.2 NVFP4 fix. For tool-calling + MTP together, run the latest main branch.</span>
+          <span class="go">github ↗</span>
+        </a>
+        <a class="row" href="https://github.com/vllm-project/vllm/pull/41276" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">PR #41276 — GLM-5.2 support fix</span>
+          <span class="desc">GLM-5.2 serving patch referenced on the RedHatAI model cards. Confirm it is merged into your runtime image before deploying.</span>
+          <span class="go">github ↗</span>
+        </a>
+        <a class="row" href="https://github.com/vllm-project/vllm/issues/34694" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">Issue #34694 — garbled NVFP4 on Hopper<span class="badge warn">why not nvfp4</span></span>
+          <span class="desc">BF16 NVFP4 Marlin produces garbled output on all GPUs without native FP4 — root-caused to bad exponent widening in the dequant kernel. Fix: PR #34577.</span>
+          <span class="go">github ↗</span>
+        </a>
+        <a class="row" href="https://github.com/vllm-project/vllm/issues/49070" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">Issue #49070 — NVFP4-MoE broken on sm90<span class="badge warn">why not nvfp4</span></span>
+          <span class="desc">NVFP4 MoE on H100/H200: garbage output plus CUDA illegal memory access at concurrency ≈ 8 in fused_marlin_moe. Needs PRs #48929 + #48624 — both open as of 2026-08.</span>
+          <span class="go">github ↗</span>
+        </a>
+        <a class="row" href="https://recipes.vllm.ai/zai-org/GLM-5.2" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">vLLM GLM-5.2 recipe</span>
+          <span class="desc">Official serving recipe: flags, parsers (glm47 tool / glm45 reasoning), MTP speculative config, and hardware matrix.</span>
+          <span class="go">recipes.vllm.ai ↗</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="rhoai" class="rv">
+    <div class="sec-head"><span class="idx">[04]</span><h2 class="glow-soft">OpenShift AI platform pieces</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <div class="rows">
+        <a class="row" href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">RHOAI documentation hub</span>
+          <span class="desc">All OpenShift AI self-managed docs — install, upgrade, and the "Serving models" chapter (single-model platform, KServe, vLLM runtimes, multi-node).</span>
+          <span class="go">docs.redhat.com ↗</span>
+        </a>
+        <a class="row" href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.16/html/serving_models/serving-large-models_serving-large-models" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">Serving large models guide</span>
+          <span class="desc">Step-by-step: enable the single-model serving platform, add the vLLM ServingRuntime for KServe, deploy from S3/PVC/OCI, external routes + token auth.</span>
+          <span class="go">docs.redhat.com ↗</span>
+        </a>
+        <a class="row" href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.16/html/working_with_accelerators/" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">Enabling NVIDIA GPUs</span>
+          <span class="desc">Node Feature Discovery operator + NVIDIA GPU operator + accelerator profiles — required before the vLLM runtime can see your 8 H100s.</span>
+          <span class="go">docs.redhat.com ↗</span>
+        </a>
+        <a class="row" href="https://ai-on-openshift.io/odh-rhoai/deploy-validated-models-on-disconnected/" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">Modelcar / disconnected deploy guide</span>
+          <span class="desc">Package the checkpoint as an OCI modelcar image and pull it at runtime — the cleanest path for air-gapped clusters; shows the exact ServingRuntime + InferenceService pair.</span>
+          <span class="go">ai-on-openshift ↗</span>
+        </a>
+        <a class="row" href="https://catalog.redhat.com/software/containers/search?q=modelcar" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">registry.redhat.io modelcar catalog</span>
+          <span class="desc">Red Hat's pre-packaged model images (registry.redhat.io/rhelai1/modelcar-*) for validated models — check here as GLM-5.2 images land.</span>
+          <span class="go">catalog.redhat.com ↗</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="cli" class="rv">
+    <div class="sec-head"><span class="idx">[05]</span><h2 class="glow-soft">CLI &amp; workstation tooling</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <div class="rows">
+        <a class="row" href="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">oc — OpenShift CLI</span>
+          <span class="desc">Official client binaries (linux/mac/windows) matching every OCP release. Needed for oc login, applying ServingRuntime/InferenceService YAML, and inspecting pods.</span>
+          <span class="go">mirror.openshift.com ↗</span>
+        </a>
+        <a class="row" href="https://pypi.org/project/huggingface-hub/" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">huggingface_hub + hf_transfer</span>
+          <span class="desc">The hf download CLI. Enable hf_transfer for multi-GB/s pulls of the ~400 GB checkpoint — a plain pull will take all day.</span>
+          <span class="go">pypi ↗</span>
+        </a>
+        <a class="row" href="https://podman.io/downloads" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">podman</span>
+          <span class="desc">For building/pushing modelcar OCI images to your registry (or skopeo for copy-only flows in disconnected environments).</span>
+          <span class="go">podman.io ↗</span>
+        </a>
+        <a class="row" href="https://github.com/llm-compressor/llm-compressor" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">llm-compressor<span class="badge dim">optional</span></span>
+          <span class="desc">Red Hat's quantization toolkit that produced these checkpoints — only if you want to re-quantize GLM-5.2 yourself (e.g. a custom FP8 mix).</span>
+          <span class="go">github ↗</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="deploy" class="rv">
+    <div class="sec-head"><span class="idx">[06]</span><h2 class="glow-soft">Deploy configs — copy &amp; apply</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <div class="grid2">
+        <div>
+          <div class="code" style="margin-top:0">
+            <div class="bar"><span>servingruntime.yaml</span><button class="copy" data-copy="yaml-rt">copy</button></div>
+<pre id="yaml-rt"><span class="k">apiVersion:</span> serving.kserve.io/v1alpha1
+<span class="k">kind:</span> ServingRuntime
+<span class="k">metadata:</span>
+  <span class="k">name:</span> vllm-cuda-glm52
+<span class="k">spec:</span>
+  <span class="k">supportedModelFormats:</span>
+    - <span class="k">name:</span> vllm
+      <span class="k">autoSelect:</span> true
+  <span class="k">multiModel:</span> false
+  <span class="k">containers:</span>
+    - <span class="k">name:</span> kserve-container
+      <span class="c"># newest cuda tag incl. PR #41276</span>
+      <span class="k">image:</span> quay.io/modh/vllm:rhoai-2.20-cuda
+      <span class="k">command:</span> [python, -m,
+        vllm.entrypoints.openai.api_server]
+      <span class="k">args:</span>
+        - --model=/mnt/models
+        - --tensor-parallel-size=8
+        - --enable-expert-parallel
+        - --kv-cache-dtype=fp8
+        - --max-model-len=131072
+        - --gpu-memory-utilization=0.92
+        - --tool-call-parser=glm47
+        - --reasoning-parser=glm45
+        - --enable-auto-tool-choice
+      <span class="k">resources:</span>
+        <span class="k">requests:</span>
+          <span class="k">nvidia.com/gpu:</span> 8
+        <span class="k">limits:</span>
+          <span class="k">nvidia.com/gpu:</span> 8</pre>
+          </div>
+        </div>
+        <div>
+          <div class="code" style="margin-top:0">
+            <div class="bar"><span>inferenceservice.yaml</span><button class="copy" data-copy="yaml-isvc">copy</button></div>
+<pre id="yaml-isvc"><span class="k">apiVersion:</span> serving.kserve.io/v1beta1
+<span class="k">kind:</span> InferenceService
+<span class="k">metadata:</span>
+  <span class="k">name:</span> glm-52-w4a16
+  <span class="k">annotations:</span>
+    <span class="k">serving.kserve.io/deploymentMode:</span> RawDeployment
+<span class="k">spec:</span>
+  <span class="k">predictor:</span>
+    <span class="k">model:</span>
+      <span class="k">modelFormat:</span>
+        <span class="k">name:</span> vllm
+      <span class="k">runtime:</span> vllm-cuda-glm52
+      <span class="c"># option A: modelcar OCI image</span>
+      <span class="k">storageUri:</span> >-
+        oci://registry.example.com/ai/
+        modelcar-glm-5.2-w4a16:1.0
+      <span class="c"># option B: S3 / PVC holding the</span>
+      <span class="c"># 'hf download' output instead:</span>
+      <span class="c"># storageUri: s3://models/glm-5.2-w4a16</span>
+      <span class="c"># storageUri: pvc://model-pvc/glm-5.2</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="code">
+        <div class="bar"><span>&gt; smoke test the endpoint</span><button class="copy" data-copy="smoke">copy</button></div>
+<pre id="smoke"><span class="k">curl</span> -X POST "https://&lt;inference_endpoint&gt;/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer &lt;token&gt;" \
+  -d '{
+    "model": "glm-5.2",
+    "messages": [{"role":"user","content":"Explain KServe in one paragraph."}],
+    "max_tokens": 256
+  }'</pre>
+      </div>
+      <p class="note">
+        Dashboard path instead of YAML: <b>Data Science Projects → your project → Models → Deploy model</b>
+        → runtime <b>vLLM NVIDIA GPU ServingRuntime for KServe</b> → 8 accelerators → paste the serve flags
+        from module [01] into <b>Additional serving runtime arguments</b> → point the connection at your
+        S3/PVC/OCI model location.
+      </p>
+    </div>
+  </section>
+
+  <section id="paths" class="rv">
+    <div class="sec-head"><span class="idx">[07]</span><h2 class="glow-soft">Decision tree at 8×80 GB</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <p style="color:var(--ink);font-size:14px;max-width:980px;margin-bottom:16px">
+        If you're capped at 8×80 GB, these are the three realistic paths — ranked by how clean they are:
+      </p>
+      <div class="rows">
+        <div class="row" style="cursor:default">
+          <span class="pfx">[a]</span>
+          <span class="name">INT4 / W4A16 weight-only<span class="badge">best tradeoff</span></span>
+          <span class="desc"><span class="hl">~388 GB, real KV headroom, correct kernels.</span> Benchmark parity with FP8. This is the recommended path in module [01] — no hardware change, no quality cliff.</span>
+          <span class="go">single node</span>
+        </div>
+        <div class="row" style="cursor:default">
+          <span class="pfx">[b]</span>
+          <span class="name">CPU / disk offload of MoE experts</span>
+          <span class="desc">FP8 or BF16 weights with <span class="hl">--cpu-offload-gb</span> (or llm.serve-style expert offload). It fits, but tokens/sec drops hard — only acceptable for batch/offline work.</span>
+          <span class="go">fits · slow</span>
+        </div>
+        <div class="row" style="cursor:default">
+          <span class="pfx">[c]</span>
+          <span class="name">More nodes (multi-node TP/PP)</span>
+          <span class="desc"><span class="hl">Cleanest — zero quality tradeoff.</span> 2× 8×H100 (1.28 TB) runs FP8 across nodes via Ray; RHOAI supports multi-node serving with the vLLM multinode runtime. Use if you can burst past one node.</span>
+          <span class="go">best quality</span>
+        </div>
+      </div>
+      <div class="code">
+        <div class="bar"><span>&gt; the two questions that pick the path</span><button class="copy" data-copy="questions">copy</button></div>
+<pre id="questions"><span class="c"># 1. Card variant: 80 GB H100 SXM/PCIe or 94 GB H100 NVL?</span>
+<span class="c">#    → NVL gets you 752 GB — still not enough for FP8 + KV. W4A16 either way.</span>
+<span class="c"># 2. Is 8 GPUs a hard ceiling, or can you burst to a second node?</span>
+<span class="c">#    → Can burst:  go multi-node FP8 (path c)</span>
+<span class="c">#    → Hard cap:   go W4A16 (path a); offload (path b) only for offline jobs</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="sizing" class="rv">
+    <div class="sec-head"><span class="idx">[08]</span><h2 class="glow-soft">What fits on 8×H100 (640 GB)</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <table>
+        <thead>
+          <tr><th>checkpoint</th><th>weights</th><th>fits 640 GB?</th><th>runs correctly on h100?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">lowbitcoffee/GLM-5.2-W4A16</td>
+            <td>≈ 388 GB</td>
+            <td><span class="ok">YES ✓</span></td>
+            <td><span class="ok">YES ✓</span> — INT4 weights, BF16 compute. Standard Marlin W4A16 path, stable on Hopper. ~250 GB left for FP8 KV cache + activations.</td>
+          </tr>
+          <tr>
+            <td class="mono">RedHatAI/GLM-5.2-NVFP4</td>
+            <td>≈ 400 GB</td>
+            <td><span class="ok">YES ✓</span></td>
+            <td><span class="no">NO ✗ (today)</span> — Marlin FP4-MoE fallback: garbled output + illegal memory access (#34694 / #49070). Blackwell-only until fix PRs merge.</td>
+          </tr>
+          <tr>
+            <td class="mono">RedHatAI / zai-org GLM-5.2-FP8</td>
+            <td>≈ 750 GB</td>
+            <td><span class="no">NO ✗</span></td>
+            <td>Fastest native Hopper precision but needs 8×H200 (1.1 TB) per the official vLLM recipe. Even 8×H100 NVL (752 GB) leaves zero KV headroom.</td>
+          </tr>
+          <tr>
+            <td class="mono">zai-org/GLM-5.2 (BF16)</td>
+            <td>≈ 1.5 TB</td>
+            <td><span class="no">NO ✗</span></td>
+            <td>Multi-node only (2× 8×H200 class). Not for this box.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="notch rv">
+    <div><span class="led"></span>END OF TRANSMISSION <span class="cursor-inline"></span></div>
+    <div class="srcline">
+      sources:
+      <a href="https://huggingface.co/lowbitcoffee/GLM-5.2-W4A16" target="_blank" rel="noopener">w4a16 model card</a> ·
+      <a href="https://huggingface.co/RedHatAI/GLM-5.2-NVFP4" target="_blank" rel="noopener">nvfp4 model card</a> ·
+      <a href="https://github.com/vllm-project/vllm/issues/34694" target="_blank" rel="noopener">issue #34694</a> ·
+      <a href="https://github.com/vllm-project/vllm/issues/49070" target="_blank" rel="noopener">issue #49070</a> ·
+      <a href="https://recipes.vllm.ai/zai-org/GLM-5.2" target="_blank" rel="noopener">vllm recipe</a> ·
+      <a href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.16/html/serving_models/serving-large-models_serving-large-models" target="_blank" rel="noopener">rhoai serving docs</a> ·
+      <a href="https://ai-on-openshift.io/odh-rhoai/deploy-validated-models-on-disconnected/" target="_blank" rel="noopener">modelcar guide</a><br>
+      built 2026-08-13 · rev2: recommendation corrected to W4A16 after verifying NVFP4 Marlin kernel defects on Hopper ·
+      verify image tags against the latest vLLM release before production rollout
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // boot sequence
+  const lines = [
+    "> run glm52-h100.ops",
+    "> load cluster.module .......... ok",
+    "> probe accelerators ........... 8× H100 80GB [640 GB]",
+    "> fp8 fit check ................ FAIL (weights ≈ 750 GB)",
+    "> nvfp4 hopper kernels ......... FLAKY (marlin fallback)",
+    "> resolve model ................ GLM-5.2-W4A16 [388 GB]",
+    "> status ....................... READY_"
+  ];
+  const log = document.getElementById('bootlog');
+  const boot = document.getElementById('boot');
+  let li = 0, ci = 0, out = "";
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function type(){
+    if(li >= lines.length){ setTimeout(()=>boot.classList.add('done'), 450); return; }
+    const line = lines[li];
+    if(ci <= line.length){
+      log.innerHTML = out + line.slice(0, ci) + '<span class="cursor"></span>';
+      ci++;
+      setTimeout(type, reduced ? 0 : (10 + Math.random()*22));
+    } else {
+      out += line + "\n"; li++; ci = 0;
+      setTimeout(type, reduced ? 0 : 160);
+    }
+  }
+  if(reduced){ log.textContent = lines.join("\n"); setTimeout(()=>boot.classList.add('done'), 200); }
+  else { type(); }
+  // skip on click
+  boot.addEventListener('click', ()=>boot.classList.add('done'));
+
+  // copy buttons
+  document.querySelectorAll('.copy').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const el = document.getElementById(btn.dataset.copy);
+      navigator.clipboard.writeText(el.innerText).then(()=>{
+        btn.textContent = 'copied ✓';
+        setTimeout(()=>btn.textContent = 'copy', 1400);
+      });
+    });
+  });
+
+  // reveal on scroll
+  const io = new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('on'); io.unobserve(e.target); } });
+  }, {threshold:.08});
+  document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
