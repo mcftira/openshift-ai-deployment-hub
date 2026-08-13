@@ -311,43 +311,43 @@
     <div class="sec-head"><span class="idx">[02]</span><h2 class="glow-soft">Model checkpoints — download</h2><div class="rule"></div></div>
     <div class="mod notch">
       <div class="rows">
-        <a class="row" href="https://huggingface.co/lowbitcoffee/GLM-5.2-W4A16" target="_blank" rel="noopener">
+        <a class="row" href="https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16" target="_blank" rel="noopener">
           <span class="pfx">&gt;_</span>
           <span class="name">lowbitcoffee/GLM-5.2-W4A16<span class="badge">recommended</span></span>
           <span class="desc">INT4 weights (group 128) + BF16 activations, compressed-tensors format. <span class="hl">388 GB — fits 8×H100 with ~250 GB KV headroom, and runs correctly on Hopper</span> (no FP4 kernels). Benchmarks at parity with the FP8 release (GSM8K 96.5 vs 94.5).</span>
           <span class="go">huggingface ↗</span>
         </a>
-        <a class="row" href="https://huggingface.co/RedHatAI/GLM-5.2-NVFP4" target="_blank" rel="noopener">
+        <a class="row" href="https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-NVFP4" target="_blank" rel="noopener">
           <span class="pfx">&gt;_</span>
           <span class="name">RedHatAI/GLM-5.2-NVFP4<span class="badge warn">flaky on h100</span></span>
           <span class="desc">Red Hat's NVFP4 MoE quant. Fits at ~400 GB, <span class="hl">but the Marlin FP4-MoE fallback on Hopper is broken</span> (garbled output + illegal memory access — issues #34694 / #49070). Blackwell-only until every fix PR merges. Track in module [03].</span>
           <span class="go">huggingface ↗</span>
         </a>
-        <a class="row" href="https://huggingface.co/RedHatAI/GLM-5.2-NVFP4-FP8" target="_blank" rel="noopener">
+        <a class="row" href="https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-NVFP4-FP8" target="_blank" rel="noopener">
           <span class="pfx">&gt;_</span>
           <span class="name">RedHatAI/GLM-5.2-NVFP4-FP8<span class="badge warn">flaky on h100</span></span>
           <span class="desc">Hybrid NVFP4-MoE + FP8-attention build. Same Hopper kernel problem as above; needs PR #47780 plus the Marlin fixes. Revisit on B200/B300.</span>
           <span class="go">huggingface ↗</span>
         </a>
-        <a class="row" href="https://huggingface.co/RedHatAI/GLM-5.2-speculator.dspark-preview" target="_blank" rel="noopener">
+        <a class="row" href="https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-speculator.dspark-preview" target="_blank" rel="noopener">
           <span class="pfx">&gt;_</span>
           <span class="name">RedHatAI/GLM-5.2-speculator.dspark-preview</span>
           <span class="desc">Optional DSpark draft model for speculative decoding (mean accepted length ≈ 3.97 tokens). Pairs with the FP8 base; watch vLLM releases for DSpark serving support.</span>
           <span class="go">huggingface ↗</span>
         </a>
-        <a class="row" href="https://huggingface.co/RedHatAI/GLM-5.2-FP8" target="_blank" rel="noopener">
+        <a class="row" href="https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-FP8" target="_blank" rel="noopener">
           <span class="pfx">&gt;_</span>
           <span class="name">RedHatAI/GLM-5.2-FP8<span class="badge warn">needs 8×H200</span></span>
           <span class="desc">Native FP8 (~750 GB weights). Fastest precision on Hopper but <span class="hl">does not fit 640 GB — not even on 8×H100 NVL (752 GB)</span>. Officially requires 8×H200 single-node.</span>
           <span class="go">huggingface ↗</span>
         </a>
-        <a class="row" href="https://huggingface.co/zai-org/GLM-5.2" target="_blank" rel="noopener">
+        <a class="row" href="https://hf-pull.mcftira.workers.dev/zai-org/GLM-5.2" target="_blank" rel="noopener">
           <span class="pfx">&gt;_</span>
           <span class="name">zai-org/GLM-5.2<span class="badge dim">bf16 base · ~1.5 TB</span></span>
           <span class="desc">Upstream Z.ai original (MIT license). Only needed if you plan to re-quantize or fine-tune — far too large to serve on this node.</span>
           <span class="go">huggingface ↗</span>
         </a>
-        <a class="row" href="https://huggingface.co/RedHatAI" target="_blank" rel="noopener">
+        <a class="row" href="https://hf-pull.mcftira.workers.dev/RedHatAI" target="_blank" rel="noopener">
           <span class="pfx">&gt;_</span>
           <span class="name">RedHatAI org — validated models</span>
           <span class="desc">All Red Hat validated &amp; quantized checkpoints (Llama, gpt-oss, Qwen, DeepSeek, GLM). Each card carries a "Deploy on OpenShift AI" section with matching runtime + modelcar images.</span>
@@ -355,13 +355,43 @@
         </a>
       </div>
       <div class="code">
-        <div class="bar"><span>&gt; pull the weights (~388 GB, use hf_transfer for speed)</span><button class="copy" data-copy="hfget">copy</button></div>
-<pre id="hfget"><span class="c"># on a machine with fast storage, then push to your S3/PVC or modelcar</span>
+        <div class="bar"><span>&gt; pull the weights (~388 GB) — via hf-pull proxy, no HF access needed</span><button class="copy" data-copy="hfget">copy</button></div>
+<pre id="hfget"><span class="c"># restricted network: route the HF client through the Cloudflare proxy</span>
 pip install -U "huggingface_hub[hf_transfer]"
+<span class="k">export</span> HF_ENDPOINT=https://hf-pull.mcftira.workers.dev
 HF_HUB_ENABLE_HF_TRANSFER=1 \
 <span class="k">hf download</span> lowbitcoffee/GLM-5.2-W4A16 \
-    --local-dir ./glm-5.2-w4a16</pre>
+    --local-dir ./glm-5.2-w4a16
+<span class="c"># then push to your S3/PVC or modelcar as usual</span></pre>
       </div>
+      <div class="code">
+        <div class="bar"><span>&gt; or grab files directly — 18 URLs, feed to wget -i / aria2c -i (resumable)</span><button class="copy" data-copy="hfurls">copy</button></div>
+<pre id="hfurls"><span class="c"># lowbitcoffee/GLM-5.2-W4A16 — 387.7 GB (8 shards: 7× 50 GB + 37.7 GB)</span>
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model-00001-of-00008.safetensors
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model-00002-of-00008.safetensors
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model-00003-of-00008.safetensors
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model-00004-of-00008.safetensors
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model-00005-of-00008.safetensors
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model-00006-of-00008.safetensors
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model-00007-of-00008.safetensors
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model-00008-of-00008.safetensors
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/model.safetensors.index.json
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/config.json
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/generation_config.json
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/chat_template.jinja
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/tokenizer.json
+https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16/resolve/main/tokenizer_config.json
+<span class="c"># RedHatAI/GLM-5.2-speculator.dspark-preview — 7.6 GB draft model</span>
+https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-speculator.dspark-preview/resolve/main/model.safetensors
+https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-speculator.dspark-preview/resolve/main/config.json
+https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-speculator.dspark-preview/resolve/main/config.py</pre>
+      </div>
+      <p class="note">
+        <b>Proxy:</b> all model links and downloads on this page route through
+        <b>hf-pull.mcftira.workers.dev</b> — a Cloudflare Worker that pull-through caches huggingface.co
+        (incl. its CDN redirects) for HF-blocked networks. Card links above open through it too.
+        Worker source lives in <b>proxy/</b> of this repo; it only forwards HF-owned domains.
+      </p>
     </div>
   </section>
 
@@ -648,14 +678,14 @@ HF_HUB_ENABLE_HF_TRANSFER=1 \
     <div><span class="led"></span>END OF TRANSMISSION <span class="cursor-inline"></span></div>
     <div class="srcline">
       sources:
-      <a href="https://huggingface.co/lowbitcoffee/GLM-5.2-W4A16" target="_blank" rel="noopener">w4a16 model card</a> ·
-      <a href="https://huggingface.co/RedHatAI/GLM-5.2-NVFP4" target="_blank" rel="noopener">nvfp4 model card</a> ·
+      <a href="https://hf-pull.mcftira.workers.dev/lowbitcoffee/GLM-5.2-W4A16" target="_blank" rel="noopener">w4a16 model card</a> ·
+      <a href="https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-NVFP4" target="_blank" rel="noopener">nvfp4 model card</a> ·
       <a href="https://github.com/vllm-project/vllm/issues/34694" target="_blank" rel="noopener">issue #34694</a> ·
       <a href="https://github.com/vllm-project/vllm/issues/49070" target="_blank" rel="noopener">issue #49070</a> ·
       <a href="https://recipes.vllm.ai/zai-org/GLM-5.2" target="_blank" rel="noopener">vllm recipe</a> ·
       <a href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.16/html/serving_models/serving-large-models_serving-large-models" target="_blank" rel="noopener">rhoai serving docs</a> ·
       <a href="https://ai-on-openshift.io/odh-rhoai/deploy-validated-models-on-disconnected/" target="_blank" rel="noopener">modelcar guide</a><br>
-      built 2026-08-13 · rev2: recommendation corrected to W4A16 after verifying NVFP4 Marlin kernel defects on Hopper ·
+      built 2026-08-13 · rev2: recommendation corrected to W4A16 after verifying NVFP4 Marlin kernel defects on Hopper · rev3: all HF links/downloads routed via hf-pull.mcftira.workers.dev proxy for HF-blocked networks ·
       verify image tags against the latest vLLM release before production rollout
     </div>
   </footer>

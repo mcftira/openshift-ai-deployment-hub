@@ -1,0 +1,4 @@
+name = "hf-pull"
+main = "worker.js"
+compatibility_date = "2026-08-13"
+workers_dev = true
