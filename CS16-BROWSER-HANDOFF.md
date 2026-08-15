@@ -73,7 +73,8 @@ the dedicated server must be Xash3D too (same protocol family).
 | CS 1.6 client logic | https://github.com/Velaron/cs16-client | reverse-engineered CS client dll |
 | Emscripten SDK | https://github.com/emscripten-core/emsdk | `git clone`, then `emsdk install/activate` a pinned version |
 | SteamCMD (game data) | https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz | anonymous login OK for app 90 |
-| CS 1.6 game data | `steamcmd +login anonymous +app_set_config 90 mod cstrike +app_update 90 validate +quit` | yields `hlds/` with `valve/` + `cstrike/` — org-licensed assets |
+| CS 1.6 game data | https://mcftira.github.io/cs16-data/ | **pre-fetched copy on our Pages domain — use this on restricted networks**; `valve/` + `cstrike/` (~500 MB, 5,112 files, each < 90 MB), see `cs16-filelist.txt` for the full file list |
+| CS 1.6 game data (origin) | `steamcmd +login anonymous +app_set_config 90 mod cstrike +app_update 90 validate +quit` | only usable from unrestricted networks — the target machines cannot reach Steam |
 | Alternative fetcher | https://github.com/SteamRE/DepotDownloader/releases | .NET, arm64/x64 native; also works anonymously for app 90 |
 | Relay (if TCP fits) | https://github.com/novnc/websockify | TCP-only upstream; see transport note above |
 | Web static server | docker.io/library/nginx:alpine | mirror through your internal registry |
@@ -103,7 +104,13 @@ the dedicated server must be Xash3D too (same protocol family).
 ## Known pitfalls (learned the hard way on the GLM/QuakeJS work)
 
 - Do not link out to external CDNs/download sites — the target network is
-  restricted; the page must be fully self-contained on our Routes.
+  restricted; the page must be fully self-contained on our Routes. **Steam is
+  unreachable from the target machines** — the game data is pre-fetched and
+  hosted at https://mcftira.github.io/cs16-data/ (mirrors what
+  `steamcmd app_update 90` produces, minus HL1 campaign maps/media/overviews).
+  Grab it with:
+  `curl -s https://mcftira.github.io/cs16-data/cs16-filelist.txt | while read f; do curl -sO --create-dirs "https://mcftira.github.io/cs16-data/$f"; done`
+  or any equivalent mirror loop.
 - HTTPS page + `ws://` = mixed-content block. Relay route must be TLS (wss).
 - Emscripten builds of xash3d are fragile across emsdk versions — pin the
   toolchain, vendor everything.
