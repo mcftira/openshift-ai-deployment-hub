@@ -216,6 +216,7 @@
       <a href="#deploy">deploy-configs</a>
       <a href="#paths">decision-tree</a>
       <a href="#sizing">sizing</a>
+      <a href="#games">games</a>
     </nav>
   </header>
 
@@ -674,6 +675,82 @@ https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-speculator.dspark-preview/r
     </div>
   </section>
 
+  <section id="games" class="rv">
+    <div class="sec-head"><span class="idx">[09]</span><h2 class="glow-soft">Game servers — LAN &amp; browser</h2><div class="rule"></div></div>
+    <div class="mod notch">
+      <div class="rows">
+        <a class="row" href="https://mcftira.github.io/quakejs/" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">QuakeJS — self-hosted<span class="badge">play now</span></span>
+          <span class="desc">Zero-install Quake III Arena in the browser. Client + demo assets served same-origin from this Pages domain — <span class="hl">works on networks where quakejs.com is blocked or down</span>. ~80 MB one-time fetch, cached in IndexedDB afterwards. Bots only; multiplayer needs a wss dedicated server.</span>
+          <span class="go">github.io ↗</span>
+        </a>
+        <a class="row" href="https://hub.docker.com/r/archont94/counter-strike1.6" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">archont94/counter-strike1.6<span class="badge">recommended</span></span>
+          <span class="desc">CS 1.6 dedicated, ~500 MB, anonymous SteamCMD install — no Steam account needed. metamod + AMX Mod X preinstalled, built-in HTTP fast-download on port 80. <span class="hl">Set SV_LAN=1 to skip Steam auth on internal clusters</span>. Speaks UDP 27015 → NodePort/LoadBalancer on OpenShift, Routes won't work.</span>
+          <span class="go">docker hub ↗</span>
+        </a>
+        <a class="row" href="https://hub.docker.com/r/joedwards32/cs2" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">joedwards32/cs2<span class="badge warn">needs steam account</span></span>
+          <span class="desc">Counter-Strike 2 dedicated (the current "CS:GO" — Valve retired it in Sep 2023). ~40 GB payload, <span class="hl">anonymous login doesn't work — requires a Steam account that owns CS2</span>, with the login session cached via steamcmd first. Auto-updates on every container start; mount a PV or it re-downloads each restart.</span>
+          <span class="go">docker hub ↗</span>
+        </a>
+        <a class="row" href="https://ghcr.io/kus/cs2-modded-server" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">ghcr.io/kus/cs2-modded-server</span>
+          <span class="desc">CS2 with Metamod + CounterStrikeSharp preinstalled — custom modes, admin tooling, plugins. Same Steam account requirement as the vanilla CS2 image.</span>
+          <span class="go">ghcr ↗</span>
+        </a>
+        <a class="row" href="https://hub.docker.com/r/cm2network/steamcmd" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">cm2network/steamcmd</span>
+          <span class="desc">Base SteamCMD image for any other dedicated server app. Also used to cache the CS2 login session into a volume before first CS2 start.</span>
+          <span class="go">docker hub ↗</span>
+        </a>
+        <a class="row" href="https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" target="_blank" rel="noopener">
+          <span class="pfx">&gt;_</span>
+          <span class="name">steamcmd_linux.tar.gz</span>
+          <span class="desc">Bare SteamCMD tarball straight from Valve's CDN — no registry, no account needed for the tool itself. Handy when docker.io/ghcr.io are the blocked hosts.</span>
+          <span class="go">steamcdn ↗</span>
+        </a>
+      </div>
+      <div class="code">
+        <div class="bar"><span>&gt; cs 1.6 — quickest LAN server (docker / podman)</span><button class="copy" data-copy="cs16run">copy</button></div>
+<pre id="cs16run">docker run -d --name cs16 \
+  -p 27015:27015/udp -p 27015:27015/tcp -p 8080:80 \
+  -e MAP=de_dust2 -e MAXPLAYERS=16 -e SV_LAN=1 \
+  archont94/counter-strike1.6:latest
+<span class="c"># openshift: expose UDP 27015 via NodePort (Routes are TCP/HTTP only),
+# and add-scc-to-user anyuid if the pod hits permission errors</span></pre>
+      </div>
+      <div class="code">
+        <div class="bar"><span>&gt; cs2 — one-time steam session cache, then run</span><button class="copy" data-copy="cs2run">copy</button></div>
+<pre id="cs2run"><span class="c"># one-time: cache the Steam login session (account must own CS2)</span>
+docker volume create steamcmd_login_volume
+docker run -it --rm -v steamcmd_login_volume:/home/steam/Steam \
+  cm2network/steamcmd \
+  bash /home/steam/steamcmd/steamcmd.sh +login &lt;STEAM_USER&gt; &lt;PASSWORD&gt; +quit
+
+<span class="c"># run (mount a volume/PV at /home/steam/cs2-dedicated or it re-pulls ~40 GB)</span>
+docker run -d --name cs2 \
+  -p 27015:27015/tcp -p 27015:27015/udp -p 27020:27020/udp \
+  -v ./cs2-data:/home/steam/cs2-dedicated/ \
+  -v steamcmd_login_volume:/home/steam/Steam \
+  -e STEAMUSER=&lt;STEAM_USER&gt; -e CS2_RCONPW=&lt;rcon-password&gt; \
+  -e CS2_SERVERNAME="Dev Team Server" -e CS2_MAXPLAYERS=10 \
+  -e CS2_STARTMAP=de_dust2 \
+  joedwards32/cs2</pre>
+      </div>
+      <p class="note">
+        <b>Pick:</b> CS 1.6 for a throwaway LAN server (tiny, anonymous, starts in seconds);
+        CS2 only if the team owns it and wants the modern game. For zero-install browser play
+        use the QuakeJS link above — it runs entirely on this domain.
+      </p>
+    </div>
+  </section>
+
   <footer class="notch rv">
     <div><span class="led"></span>END OF TRANSMISSION <span class="cursor-inline"></span></div>
     <div class="srcline">
@@ -685,7 +762,7 @@ https://hf-pull.mcftira.workers.dev/RedHatAI/GLM-5.2-speculator.dspark-preview/r
       <a href="https://recipes.vllm.ai/zai-org/GLM-5.2" target="_blank" rel="noopener">vllm recipe</a> ·
       <a href="https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.16/html/serving_models/serving-large-models_serving-large-models" target="_blank" rel="noopener">rhoai serving docs</a> ·
       <a href="https://ai-on-openshift.io/odh-rhoai/deploy-validated-models-on-disconnected/" target="_blank" rel="noopener">modelcar guide</a><br>
-      built 2026-08-13 · rev2: recommendation corrected to W4A16 after verifying NVFP4 Marlin kernel defects on Hopper · rev3: all HF links/downloads routed via hf-pull.mcftira.workers.dev proxy for HF-blocked networks ·
+      built 2026-08-13 · rev2: recommendation corrected to W4A16 after verifying NVFP4 Marlin kernel defects on Hopper · rev3: all HF links/downloads routed via hf-pull.mcftira.workers.dev proxy for HF-blocked networks · rev4: added [09] game servers module (CS 1.6 / CS2 downloads, QuakeJS self-hosted) ·
       verify image tags against the latest vLLM release before production rollout
     </div>
   </footer>
