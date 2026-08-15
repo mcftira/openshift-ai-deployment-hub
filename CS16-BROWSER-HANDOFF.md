@@ -26,13 +26,15 @@ the dedicated server must be Xash3D too (same protocol family).
 
 ### 1. Web client (browser)
 
-- Engine: `github.com/FWGS/xash3d-fwgs` — has Emscripten/wasm support
-  (`waf configure -T emscripten`). Pin a known-good emsdk version; bit-rot in
-  emscripten builds is the #1 risk — budget time for it.
-- Game logic: `github.com/FWGS/cs16client` — builds `client.so`/`menu.so`
-  equivalents for the wasm target.
-- Reference deployments to crib from: `yohimik/webxash3d`, cs-online.club
-  (do NOT fetch anything from external sites at runtime — restricted network).
+- Engine: https://github.com/FWGS/xash3d-fwgs — Emscripten/wasm support in
+  tree (`./waf configure -T emscripten`). Pin a known-good emsdk version;
+  bit-rot in emscripten builds is the #1 risk — budget time for it.
+- Game logic: https://github.com/Velaron/cs16-client — reverse-engineered
+  CS 1.6 client dll (`client.so`/`menu.so` equivalents for the wasm target).
+- Reference wasm forks to crib page/loading plumbing from (small/stale, do
+  not rely on): ColinVanderMeer/XashWR, arc360alt/webXash,
+  Buggem/xash3d-emscripten. Do NOT fetch anything from external sites at
+  runtime — restricted network.
 - Output: `index.html` + `xash.js` + `xash.wasm` + a data bundle
   (`cstrike.zip` / folder tree the client downloads once into IndexedDB).
 - Data bundle: `valve/` + `cstrike/` from a licensed CS 1.6 install
@@ -49,15 +51,32 @@ the dedicated server must be Xash3D too (same protocol family).
 - Listens UDP 27015 **inside the cluster only** (ClusterIP Service; never
   exposed directly).
 
-### 3. WebSocket ↔ UDP relay
+### 3. WebSocket ↔ game-server relay
 
-- The wasm client cannot speak raw UDP. Put a relay in front of the server:
-  `websockify` (or equivalent) translating `ws(s)://<route>/cs16` →
-  `udp://xash3d-svc:27015`.
-- **Verify the exact transport the chosen client build implements** — some
-  xash3d-emscripten builds use plain ws→udp relays, others expect a
-  WebRTC-datachannel relay. This determines the relay implementation; check
-  the client's `net` layer before writing manifests.
+- The wasm client cannot speak raw UDP to the server directly. Put a relay in
+  front of it translating the browser's WebSocket connection to the xash3d
+  server's UDP 27015.
+- **Verify the exact transport the chosen client build implements first** —
+  this decides the relay: some xash3d-emscripten builds tunnel UDP over ws,
+  others use a WebRTC-datachannel relay, and xash3d-fwgs has native ws server
+  support in some configurations (check the engine's net layer before writing
+  manifests).
+- If a simple ws→TCP/UDP bridge fits: https://github.com/novnc/websockify
+  (note: upstream websockify is TCP-only; for UDP either use the proxy bundled
+  with the chosen wasm fork or a ~100-line node/go ws→UDP forwarder).
+
+## Exact downloads
+
+| Piece | URL | Notes |
+| --- | --- | --- |
+| Engine source | https://github.com/FWGS/xash3d-fwgs | active upstream; build with `./waf configure -T emscripten` |
+| CS 1.6 client logic | https://github.com/Velaron/cs16-client | reverse-engineered CS client dll |
+| Emscripten SDK | https://github.com/emscripten-core/emsdk | `git clone`, then `emsdk install/activate` a pinned version |
+| SteamCMD (game data) | https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz | anonymous login OK for app 90 |
+| CS 1.6 game data | `steamcmd +login anonymous +app_set_config 90 mod cstrike +app_update 90 validate +quit` | yields `hlds/` with `valve/` + `cstrike/` — org-licensed assets |
+| Alternative fetcher | https://github.com/SteamRE/DepotDownloader/releases | .NET, arm64/x64 native; also works anonymously for app 90 |
+| Relay (if TCP fits) | https://github.com/novnc/websockify | TCP-only upstream; see transport note above |
+| Web static server | docker.io/library/nginx:alpine | mirror through your internal registry |
 
 ### 4. OpenShift objects
 
